@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  bot:
+    build: .
+    container_name: bot
+    environment:
+      - TELEGRAM_API_KEY=${TELEGRAM_API_KEY}
+    ports:
+      - "5001:5000"
+    volumes:
+      - .:/app
