@@ -1,15 +1,17 @@
-from aiogram import Router, types
+from aiogram import Router, types, F, Bot
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 from db.api import add_user
+from utils import send_invoice, validate, get_item, parse_payload
 
 router = Router()
 
 class Callbacks:
     COFFEE = 'order_coffee'
     PIROZHOK = 'order_pirozhok'
-    BUY = 'buy'
     PAY = 'pay'
+    CANCEL = 'cancel'
 
 def start_keyboard() -> types.InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -19,14 +21,10 @@ def start_keyboard() -> types.InlineKeyboardMarkup:
 
     return builder.as_markup()
 
-def buy_keyboard(item_type: str) -> types.InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(types.InlineKeyboardButton(text="Купить", callback_data=f"{Callbacks.BUY}_{item_type}"))
-    return builder.as_markup()
-
 def pay_keyboard(item_type: str) -> types.InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(types.InlineKeyboardButton(text="Оплатить", callback_data=f"{Callbacks.PAY}_{item_type}"))
+    builder.add(types.InlineKeyboardButton(text="Отмена", callback_data=Callbacks.CANCEL))
     return builder.as_markup()
 
 @router.message(Command("start"))
@@ -38,32 +36,47 @@ async def handle_start(message: types.Message):
     )
 
 @router.callback_query()
-async def handle_callback_query(callback_query: types.CallbackQuery):
+async def handle_callback_query(callback_query: types.CallbackQuery, bot: Bot):
     if callback_query.data == Callbacks.COFFEE:
-        keyboard = buy_keyboard('coffee')
+        item = get_item('coffee')
+        keyboard = pay_keyboard('coffee')
         await callback_query.message.edit_text(
-            "Вы выбрали Кофе!",
+            f"К оплате {item.price_rub}р",
             reply_markup=keyboard
         )
     elif callback_query.data == Callbacks.PIROZHOK:
-        keyboard = buy_keyboard('pirozhok')
+        item = get_item('pirozhok')
+        keyboard = pay_keyboard('pirozhok')
         await callback_query.message.edit_text(
-            "Вы выбрали Пирожок!",
-            reply_markup=keyboard
-        )
-    elif callback_query.data.startswith(f"{Callbacks.BUY}_"):
-        item_type = callback_query.data.split('_')[1]
-        keyboard = pay_keyboard(item_type)
-        await callback_query.message.edit_text(
-            "К оплате 100р",
+            f"К оплате {item.price_rub}р",
             reply_markup=keyboard
         )
     elif callback_query.data.startswith(f"{Callbacks.PAY}_"):
         item_type = callback_query.data.split('_')[1]
-        user_id = callback_query.from_user.id
-        add_user(user_id, item_type)
-        await callback_query.message.edit_text("Оплата успешна! Вы добавлены в базу.")
+        await send_invoice(bot, callback_query.message.chat.id, item_type)
+    elif callback_query.data == Callbacks.CANCEL:
+        keyboard = start_keyboard()
+        await callback_query.message.edit_text(
+            "Привет! Выберите, что бы вы хотели заказать:",
+            reply_markup=keyboard
+        )
     else:
         await callback_query.message.answer("err")
 
     await callback_query.answer()
+
+@router.pre_checkout_query()
+async def pre_checkout_handler(query: types.PreCheckoutQuery, bot: Bot):
+    ok, err = validate(query)
+    await bot(query.answer(ok=ok, error_message=err))
+
+@router.message(F.successful_payment)
+async def successful_payment_handler(message: types.Message):
+    payload = message.successful_payment.invoice_payload
+    item_type = parse_payload(payload)
+    if not item_type:
+        await message.answer("Ошибка: не удалось определить товар.")
+        return
+
+    add_user(message.from_user.id, item_type)
+    await message.answer("Оплата успешна! Спасибо!")

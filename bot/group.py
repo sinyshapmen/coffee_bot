@@ -6,7 +6,7 @@ from db.api import get_stats
 
 router = Router()
 
-ADMIN_ID = int(os.getenv("ADMIN_ID"))
+ADMINS_ID = os.getenv("ADMINS_ID")
 
 @router.message(lambda m: m.new_chat_members is not None)
 async def handle_adding(message: types.Message, bot: Bot):
@@ -18,7 +18,7 @@ async def handle_adding(message: types.Message, bot: Bot):
                 await message.answer(
                     "👋 Привет!\n\n"
                     "Я бот для учета заказов ☕🍰\n"
-                    "Команда для админа: /stats"
+                    "Вывод статистики /stats"
                 )
             else:
                 await message.answer(
@@ -32,7 +32,7 @@ async def stats_command(message: types.Message):
     if message.chat.type not in ("group", "supergroup"):
         return
 
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMINS_ID:
         await message.answer("❌ У вас нет прав на эту команду")
         return
 
