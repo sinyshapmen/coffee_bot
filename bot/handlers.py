@@ -23,15 +23,15 @@ def start_keyboard() -> types.InlineKeyboardMarkup:
 
 def pay_keyboard(item_type: str) -> types.InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.add(types.InlineKeyboardButton(text="Оплатить", callback_data=f"{Callbacks.PAY}_{item_type}"))
     builder.add(types.InlineKeyboardButton(text="Отмена", callback_data=Callbacks.CANCEL))
+    builder.add(types.InlineKeyboardButton(text="Оплатить", callback_data=f"{Callbacks.PAY}_{item_type}"))
     return builder.as_markup()
 
 @router.message(Command("start"))
 async def handle_start(message: types.Message):
     keyboard = start_keyboard()
     await message.answer(
-        "Привет! Выберите, что бы вы хотели заказать:",
+        "Приветствую! Выберите, что бы вы хотели заказать",
         reply_markup=keyboard
     )
 
@@ -41,15 +41,17 @@ async def handle_callback_query(callback_query: types.CallbackQuery, bot: Bot):
         item = get_item('coffee')
         keyboard = pay_keyboard('coffee')
         await callback_query.message.edit_text(
-            f"К оплате {item.price_rub}р",
-            reply_markup=keyboard
+            f"🧾 Сумма к оплате <b>{item.price_rub} ₽</b>",
+            reply_markup=keyboard,
+            parse_mode="HTML",
         )
     elif callback_query.data == Callbacks.PIROZHOK:
         item = get_item('pirozhok')
         keyboard = pay_keyboard('pirozhok')
         await callback_query.message.edit_text(
-            f"К оплате {item.price_rub}р",
-            reply_markup=keyboard
+            f"🧾 Сумма к оплате <b>{item.price_rub} ₽</b>",
+            reply_markup=keyboard,
+            parse_mode="HTML",
         )
     elif callback_query.data.startswith(f"{Callbacks.PAY}_"):
         item_type = callback_query.data.split('_')[1]

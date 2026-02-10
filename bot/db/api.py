@@ -16,7 +16,13 @@ def add_user(user_id: int, item_type: str):
     }
     return supabase.table("orders").insert(data).execute()
 
-def get_stats():
-    response = supabase.table("orders").select("item_type").execute()
+def get_stats(start, end):
+    response = (
+        supabase.table("orders")
+        .select("item_type")
+        .gte("created_at", start.isoformat())
+        .lt("created_at", end.isoformat())
+        .execute()
+    )
     items = [row["item_type"] for row in response.data]
     return Counter(items)
