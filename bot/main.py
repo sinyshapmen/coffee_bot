@@ -5,6 +5,17 @@ import os
 
 from handlers import router as private_router
 from group import router as group_router
+from db.api import clear_old
+
+async def cleanup_loop():
+    while True:
+        try:
+            deleted = clear_old(7)
+            if deleted:
+                logging.info("Cleanup: deleted %s old orders", deleted)
+        except Exception:
+            logging.exception("Cleanup failed")
+        await asyncio.sleep(24 * 60 * 60)
 
 async def main():
     logging.basicConfig(
@@ -20,7 +31,11 @@ async def main():
 
     logging.info("Bot started")
 
-    await dp.start_polling(bot)
+    cleanup = asyncio.create_task(cleanup_loop())
+    try:
+        await dp.start_polling(bot)
+    finally:
+        cleanup.cancel()
 
 
 if __name__ == "__main__":

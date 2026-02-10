@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from collections import Counter
 from supabase import create_client, Client
 
@@ -26,3 +27,13 @@ def get_stats(start, end):
     )
     items = [row["item_type"] for row in response.data]
     return Counter(items)
+
+def clear_old(days: int) -> int:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    response = (
+        supabase.table("orders")
+        .delete()
+        .lt("created_at", cutoff.isoformat())
+        .execute()
+    )
+    return len(response.data or [])
