@@ -12,6 +12,7 @@ class Callbacks:
     PIROZHOK = 'order_pirozhok'
     PAY = 'pay'
     CANCEL = 'cancel'
+    BUY_MORE = 'buy_more'
 
 def start_keyboard() -> types.InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -25,6 +26,11 @@ def pay_keyboard(item_type: str) -> types.InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(types.InlineKeyboardButton(text="Отмена", callback_data=Callbacks.CANCEL))
     builder.add(types.InlineKeyboardButton(text="Оплатить", callback_data=f"{Callbacks.PAY}_{item_type}"))
+    return builder.as_markup()
+
+def post_purchase_keyboard() -> types.InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.add(types.InlineKeyboardButton(text="Купить еще", callback_data=Callbacks.BUY_MORE))
     return builder.as_markup()
 
 @router.message(Command("start"))
@@ -62,6 +68,12 @@ async def handle_callback_query(callback_query: types.CallbackQuery, bot: Bot):
             "Привет! Выберите, что бы вы хотели заказать:",
             reply_markup=keyboard
         )
+    elif callback_query.data == Callbacks.BUY_MORE:
+        keyboard = start_keyboard()
+        await callback_query.message.edit_text(
+            "Привет! Выберите, что бы вы хотели заказать:",
+            reply_markup=keyboard
+        )
     else:
         await callback_query.message.answer("err")
 
@@ -70,6 +82,12 @@ async def handle_callback_query(callback_query: types.CallbackQuery, bot: Bot):
 @router.pre_checkout_query()
 async def pre_checkout_handler(query: types.PreCheckoutQuery, bot: Bot):
     ok, err = validate(query)
+    if not ok:
+        await bot.send_message(
+            query.from_user.id,
+            f"Оплата не прошла: {err}",
+            reply_markup=post_purchase_keyboard()
+        )
     await bot(query.answer(ok=ok, error_message=err))
 
 @router.message(F.successful_payment)
@@ -77,8 +95,14 @@ async def successful_payment_handler(message: types.Message):
     payload = message.successful_payment.invoice_payload
     item_type = parse_payload(payload)
     if not item_type:
-        await message.answer("Ошибка: не удалось определить товар.")
+        await message.answer(
+            "Ошибка: не удалось определить товар.",
+            reply_markup=post_purchase_keyboard()
+        )
         return
 
     add_user(message.from_user.id, item_type)
-    await message.answer("Оплата успешна! Спасибо!")
+    await message.answer(
+        "Оплата успешна! Спасибо!",
+        reply_markup=post_purchase_keyboard()
+    )

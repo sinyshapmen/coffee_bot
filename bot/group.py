@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta
 from aiogram import Router, types, Bot
 from aiogram.filters import Command
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from db.api import get_stats
@@ -30,10 +31,11 @@ def _day_range(day_offset: int) -> tuple[datetime, datetime]:
     end = start + timedelta(days=1)
     return start, end
 
-def _format_stats(stats) -> str:
+def _format_stats(stats, selected_date: datetime) -> str:
+    date_text = selected_date.strftime("%d.%m.%Y")
     if not stats:
-        return "📊 Нет данных за выбранный период"
-    text = "📊 Статистика заказов:\n\n"
+        return f"📊 {date_text}\n\nНет данных за выбранный период"
+    text = f"📊 {date_text}\n\n"
     for item, count in stats.items():
         emoji = "☕" if item == "coffee" else "🍰"
         text += f"{emoji} {item} — {count}\n"
@@ -90,6 +92,13 @@ async def stats_callback(callback_query: types.CallbackQuery):
         start, end = _day_range(2)
 
     stats = get_stats(start, end)
-    text = _format_stats(stats)
-    await callback_query.message.answer(text)
+    text = _format_stats(stats, start)
+    try:
+        await callback_query.message.edit_text(
+            text,
+            reply_markup=stats_keyboard()
+        )
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e):
+            raise
     await callback_query.answer()
