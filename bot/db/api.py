@@ -1,4 +1,6 @@
 import os
+import logging
+import asyncio
 from datetime import datetime, timedelta, timezone
 from collections import Counter
 from supabase import create_client, Client
@@ -37,3 +39,13 @@ def clear_old(days: int) -> int:
         .execute()
     )
     return len(response.data or [])
+
+async def cleanup_loop():
+    while True:
+        try:
+            deleted = clear_old(7)
+            if deleted:
+                logging.info("Cleanup: deleted %s old orders", deleted)
+        except Exception:
+            logging.exception("Cleanup failed")
+        await asyncio.sleep(24 * 60 * 60)
