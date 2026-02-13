@@ -36,7 +36,8 @@ def _format_stats(stats) -> str:
     text = "📊 Статистика заказов:\n\n"
     for item, count in stats.items():
         emoji = "☕" if item == "coffee" else "🍰"
-        text += f"{emoji} {item} — {count}\n"
+        display_name = "Кофе" if item == 'coffee' else 'Пирожок'
+        text += f"{emoji} {display_name} — {count}\n"
     return text
 
 @router.message(lambda m: m.new_chat_members is not None)
@@ -49,7 +50,8 @@ async def handle_adding(message: types.Message, bot: Bot):
                 await message.answer(
                     "👋 Привет!\n"
                     "Я бот для учета заказов ☕🍰\n\n"
-                    "Вывод статистики /stats"
+                    "<b>Посмотреть статистику: /stats</b>",
+                    parse_mode='HTML'
                 )
             else:
                 await message.answer(
