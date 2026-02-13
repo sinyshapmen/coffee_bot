@@ -24,8 +24,8 @@ def start_keyboard() -> types.InlineKeyboardMarkup:
 
 def pay_keyboard(item_type: str) -> types.InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.add(types.InlineKeyboardButton(text="Отмена", callback_data=Callbacks.CANCEL))
-    builder.add(types.InlineKeyboardButton(text="Оплатить", callback_data=f"{Callbacks.PAY}_{item_type}"))
+    builder.add(types.InlineKeyboardButton(text="🚫 Отмена", callback_data=Callbacks.CANCEL))
+    builder.add(types.InlineKeyboardButton(text="💳 Оплатить", callback_data=f"{Callbacks.PAY}_{item_type}"))
     return builder.as_markup()
 
 def post_purchase_keyboard() -> types.InlineKeyboardMarkup:
@@ -37,8 +37,9 @@ def post_purchase_keyboard() -> types.InlineKeyboardMarkup:
 async def handle_start(message: types.Message):
     keyboard = start_keyboard()
     await message.answer(
-        "Приветствую! Выберите, что бы вы хотели заказать",
-        reply_markup=keyboard
+        "<b>Привет💛</b>\n<i>Поддержите добрую традицию ☕ \nВыберите позицию:</i>",
+        reply_markup=keyboard,
+        parse_mode="HTML"
     )
 
 @router.callback_query()
@@ -47,6 +48,7 @@ async def handle_callback_query(callback_query: types.CallbackQuery, bot: Bot):
         item = get_item('coffee')
         keyboard = pay_keyboard('coffee')
         await callback_query.message.edit_text(
+            f"☕ Вы выбрали кофе\n"
             f"🧾 Сумма к оплате <b>{item.price_rub} ₽</b>",
             reply_markup=keyboard,
             parse_mode="HTML",
@@ -55,6 +57,7 @@ async def handle_callback_query(callback_query: types.CallbackQuery, bot: Bot):
         item = get_item('pirozhok')
         keyboard = pay_keyboard('pirozhok')
         await callback_query.message.edit_text(
+            f"🧁 Вы выбрали пирожок\n"
             f"🧾 Сумма к оплате <b>{item.price_rub} ₽</b>",
             reply_markup=keyboard,
             parse_mode="HTML",
@@ -65,8 +68,9 @@ async def handle_callback_query(callback_query: types.CallbackQuery, bot: Bot):
     elif callback_query.data == Callbacks.CANCEL:
         keyboard = start_keyboard()
         await callback_query.message.edit_text(
-            "Привет! Выберите, что бы вы хотели заказать:",
-            reply_markup=keyboard
+            "<b>Привет💛</b>\n<i>Поддержите добрую традицию ☕ \nВыберите позицию:</i>",
+            reply_markup=keyboard,
+            parse_mode="HTML"
         )
     elif callback_query.data == Callbacks.BUY_MORE:
         keyboard = start_keyboard()
@@ -95,14 +99,8 @@ async def successful_payment_handler(message: types.Message):
     payload = message.successful_payment.invoice_payload
     item_type = parse_payload(payload)
     if not item_type:
-        await message.answer(
-            "Ошибка: не удалось определить товар.",
-            reply_markup=post_purchase_keyboard()
-        )
+        await message.answer("⚠️<b>Ошибка</b>: не удалось определить товар.\nПопробуйте еще раз.", parse_mode="HTML")
         return
 
     add_user(message.from_user.id, item_type)
-    await message.answer(
-        "Оплата успешна! Спасибо!",
-        reply_markup=post_purchase_keyboard()
-    )
+    await message.answer("✅<b>Оплата успешна! Спасибо! 🙏💛</b>", parse_mode="HTML")
